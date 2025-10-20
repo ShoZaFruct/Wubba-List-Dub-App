@@ -1,9 +1,5 @@
-package com.example.wubbalistdubapp.data
+package com.example.wubbalistdubapp.domain.model
 
-import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
-
-@Parcelize
 data class Character(
     val id: Int,
     val name: String,
@@ -13,5 +9,4 @@ data class Character(
     val image: String,
     val origin: String,
     val location: String
-) : Parcelable
-
+)
