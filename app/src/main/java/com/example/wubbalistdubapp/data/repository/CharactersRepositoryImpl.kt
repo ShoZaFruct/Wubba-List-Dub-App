@@ -4,21 +4,24 @@ import com.example.wubbalistdubapp.data.mapper.toDomain
 import com.example.wubbalistdubapp.data.remote.api.RickAndMortyApi
 import com.example.wubbalistdubapp.domain.model.Character
 import com.example.wubbalistdubapp.domain.repository.CharactersRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class CharactersRepositoryImpl(
     private val api: RickAndMortyApi
 ) : CharactersRepository {
 
-    private val cache = mutableMapOf<Int, Character>()
-
-    override suspend fun getCharacters(page: Int?, name: String?): List<Character> {
-        val resp = api.getCharacters(page = page, name = name)
-        return resp.results.map { it.toDomain() }
+    override suspend fun getCharacters(
+        page: Int?,
+        name: String?,
+        status: String?,
+        gender: String?
+    ): List<Character> = withContext(Dispatchers.IO) {
+        val resp = api.getCharacters(page = page, name = name, status = status, gender = gender)
+        resp.results.orEmpty().map { it.toDomain() }
     }
 
-    override suspend fun getCharacterById(id: Int): Character {
-        cache[id]?.let { return it }
-        val dto = api.getCharacter(id)
-        return dto.toDomain().also { cache[id] = it }
+    override suspend fun getCharacterById(id: Int): Character = withContext(Dispatchers.IO) {
+        api.getCharacter(id).toDomain()
     }
 }

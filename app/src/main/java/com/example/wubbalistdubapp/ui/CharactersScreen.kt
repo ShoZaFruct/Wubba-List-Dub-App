@@ -5,44 +5,46 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.wubbalistdubapp.domain.model.Character
+import com.example.wubbalistdubapp.domain.model.Filters
+import com.example.wubbalistdubapp.ui.components.ErrorState
 
 @Composable
 fun CharactersRoute(
     onItemClick: (Character) -> Unit,
-    vm: CharactersViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    onOpenFilters: () -> Unit,
+    vm: CharactersViewModel = viewModel()
 ) {
     val state by vm.state.collectAsState()
-    val query by vm.query.collectAsState()
-
-    LaunchedEffect(Unit) { vm.loadFirstPage() }
+    val filters by vm.filters.collectAsState()
 
     CharactersScreen(
         state = state,
-        query = query,
-        onQueryChange = vm::setQuery,
+        filters = filters,
         onSearch = vm::loadFirstPage,
         onLoadMore = vm::loadNextPage,
-        onRetry = vm::loadFirstPage,
-        onItemClick = onItemClick
+        onItemClick = onItemClick,
+        onOpenFilters = onOpenFilters
     )
 }
 
 @Composable
 fun CharactersScreen(
     state: UiState<List<Character>>,
-    query: String,
-    onQueryChange: (String) -> Unit,
+    filters: Filters,
     onSearch: () -> Unit,
     onLoadMore: () -> Unit,
-    onRetry: () -> Unit,
-    onItemClick: (Character) -> Unit
+    onItemClick: (Character) -> Unit,
+    onOpenFilters: () -> Unit
 ) {
     Column {
         Surface(tonalElevation = 2.dp, shadowElevation = 4.dp) {
@@ -56,32 +58,20 @@ fun CharactersScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                label = { Text("Поиск по имени") }
-            )
+            OutlinedButton(onClick = onOpenFilters) { Text("Фильтры") }
             Button(onClick = onSearch) { Text("Найти") }
         }
 
         when (state) {
-            UiState.Idle, UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            is UiState.Error -> Column(
-                Modifier.fillMaxSize().padding(16.dp),
-                verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Ошибка: ${state.message}")
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = onRetry) { Text("Повторить") }
-            }
+            UiState.Idle, UiState.Loading ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            is UiState.Error -> ErrorState(state.message, onSearch)
             is UiState.Success -> {
                 val items = state.data
                 LazyColumn(
@@ -94,7 +84,9 @@ fun CharactersScreen(
                         Spacer(Modifier.height(8.dp))
                         Button(
                             onClick = onLoadMore,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
                         ) { Text("Ещё") }
                         Spacer(Modifier.height(12.dp))
                     }

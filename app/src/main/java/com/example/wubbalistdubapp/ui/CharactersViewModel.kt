@@ -2,56 +2,72 @@ package com.example.wubbalistdubapp.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.wubbalistdubapp.data.remote.api.NetworkModule
-import com.example.wubbalistdubapp.data.repository.CharactersRepositoryImpl
+import com.example.wubbalistdubapp.di.ServiceLocator
 import com.example.wubbalistdubapp.domain.model.Character
-import com.example.wubbalistdubapp.domain.usecase.GetCharactersUseCase
+import com.example.wubbalistdubapp.domain.model.Filters
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class CharactersViewModel : ViewModel() {
 
-    private val repo = CharactersRepositoryImpl(NetworkModule.api)
-    private val getCharacters = GetCharactersUseCase(repo)
+    private val getCharacters = ServiceLocator.getCharacters
+    private val filtersFlow = ServiceLocator.filtersDataStore.filtersFlow
 
-    private val _state = MutableStateFlow<UiState<List<Character>>>(UiState.Idle)
+    private val _state = MutableStateFlow<UiState<List<Character>>>(UiState.Loading)
     val state: StateFlow<UiState<List<Character>>> = _state
 
-    private val _query = MutableStateFlow("")
-    val query: StateFlow<String> = _query
+    private val _filters = MutableStateFlow(Filters())
+    val filters: StateFlow<Filters> = _filters
 
     private var currentPage = 1
     private var job: Job? = null
 
-    fun setQuery(q: String) { _query.value = q }
+    private val handler = CoroutineExceptionHandler { _, e ->
+        _state.value = UiState.Error(e.localizedMessage ?: "Ошибка загрузки")
+    }
+
+    init {
+        viewModelScope.launch {
+            filtersFlow.collectLatest { f ->
+                _filters.value = f
+                loadFirstPage()
+            }
+        }
+    }
 
     fun loadFirstPage() {
         currentPage = 1
-        request(page = currentPage, name = query.value.ifBlank { null }, replace = true)
+        request(page = currentPage, replace = true)
     }
 
     fun loadNextPage() {
-        request(page = currentPage + 1, name = query.value.ifBlank { null }, replace = false)
+        request(page = currentPage + 1, replace = false)
     }
 
-    private fun request(page: Int?, name: String?, replace: Boolean) {
+    private fun request(page: Int?, replace: Boolean) {
         job?.cancel()
-        job = viewModelScope.launch {
+        job = viewModelScope.launch(handler) {
             if (replace) _state.value = UiState.Loading
-            try {
-                val data = getCharacters(page, name)
-                if (replace) {
-                    _state.value = UiState.Success(data)
-                } else {
-                    val old = (state.value as? UiState.Success)?.data.orEmpty()
-                    _state.value = UiState.Success(old + data)
-                }
-                if (page != null) currentPage = page
-            } catch (e: Exception) {
-                _state.value = UiState.Error(e.localizedMessage ?: "Ошибка загрузки")
+            val f = _filters.value
+            val items = getCharacters(
+                page = page,
+                name = f.name.ifBlank { null }
+            ).filter { ch ->
+                (f.status == "any" || ch.status.equals(f.status, true)) &&
+                        (f.gender == "any" || ch.gender.equals(f.gender, true))
             }
+
+            if (replace) {
+                _state.value = UiState.Success(items)
+            } else {
+                val old = (state.value as? UiState.Success)?.data.orEmpty()
+                _state.value = UiState.Success(old + items)
+            }
+            if (page != null) currentPage = page
         }
     }
 }

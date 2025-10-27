@@ -10,13 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,9 +21,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.wubbalistdubapp.di.ServiceLocator
 import com.example.wubbalistdubapp.navigation.Routes
 import com.example.wubbalistdubapp.ui.CharacterDetailsRoute
 import com.example.wubbalistdubapp.ui.CharactersRoute
+import com.example.wubbalistdubapp.ui.favorites.FavoritesRoute
+import com.example.wubbalistdubapp.ui.filters.FiltersRoute
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,27 +35,28 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 val navController = rememberNavController()
+                val badgeCache = ServiceLocator.filtersBadgeCache
 
                 Scaffold(
                     bottomBar = {
                         NavigationBar {
                             val current by navController.currentBackStackEntryAsState()
                             val route = current?.destination?.route
-
                             fun go(dest: String) {
                                 navController.navigate(dest) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
                             }
-
                             NavigationBarItem(
                                 selected = route?.startsWith(Routes.CHARACTERS) == true,
                                 onClick = { go(Routes.CHARACTERS) },
-                                icon = { Icon(Icons.Filled.List, null) },
+                                icon = {
+                                    BadgedBox(badge = {
+                                        if (badgeCache.showBadge) Badge()
+                                    }) { Icon(Icons.Filled.List, null) }
+                                },
                                 label = { Text("Персонажи") }
                             )
                             NavigationBarItem(
@@ -81,19 +80,26 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(inner)
                     ) {
                         composable(Routes.CHARACTERS) {
-                            CharactersRoute(onItemClick = { ch ->
-                                navController.navigate(Routes.characterDetails(ch.id))
-                            })
-                        }
-                        composable(Routes.CHARACTER_DETAILS) { entry ->
-                            val id = entry.arguments?.getString("id")!!.toInt()
-                            CharacterDetailsRoute(
-                                id = id,
-                                onBack = { navController.popBackStack() }
+                            CharactersRoute(
+                                onItemClick = { ch -> navController.navigate(Routes.characterDetails(ch.id)) },
+                                onOpenFilters = { navController.navigate(Routes.FILTERS) }
                             )
                         }
+                        composable(
+                            route = Routes.CHARACTER_DETAILS,
+                            arguments = Routes.characterArgs
+                        ) {
+                            CharacterDetailsRoute(onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.FILTERS) {
+                            FiltersRoute(onDone = { navController.popBackStack() })
+                        }
                         composable(Routes.EPISODES) { PlaceholderScreen("Экран эпизодов (заглушка)") }
-                        composable(Routes.FAVORITES) { PlaceholderScreen("Экран избранного (заглушка)") }
+                        composable(Routes.FAVORITES) {
+                            FavoritesRoute(
+                                onItemClick = { ch -> navController.navigate(Routes.characterDetails(ch)) }
+                            )
+                        }
                     }
                 }
             }
