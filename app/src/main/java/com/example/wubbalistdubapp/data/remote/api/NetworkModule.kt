@@ -11,25 +11,26 @@ import java.util.concurrent.TimeUnit
 object NetworkModule {
     private const val BASE_URL = "https://rickandmortyapi.com/api/"
 
-    private val logging = HttpLoggingInterceptor().apply {
+    private val logger = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
-    private val okHttp = OkHttpClient.Builder()
-        .addInterceptor(logging)
+    private val okHttp: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(logger)
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
-    private val moshi = Moshi.Builder()
+    private val moshi: Moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .client(okHttp)
-        .addConverterFactory(MoshiConverterFactory.create(moshi))
-        .build()
-
-    val api: RickAndMortyApi = retrofit.create(RickAndMortyApi::class.java)
+    val api: RickAndMortyApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttp)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+            .create(RickAndMortyApi::class.java)
+    }
 }
