@@ -11,6 +11,9 @@ import com.example.wubbalistdubapp.data.repository.FavoritesRepositoryImpl
 import com.example.wubbalistdubapp.domain.repository.CharactersRepository
 import com.example.wubbalistdubapp.domain.usecase.GetCharacterByIdUseCase
 import com.example.wubbalistdubapp.domain.usecase.GetCharactersUseCase
+import com.example.wubbalistdubapp.data.local.ProfileDataStore
+import com.example.wubbalistdubapp.data.repository.ProfileRepositoryImpl
+import com.example.wubbalistdubapp.domain.repository.ProfileRepository
 
 object ServiceLocator {
 
@@ -37,4 +40,8 @@ object ServiceLocator {
 
     // Badge cache
     val filtersBadgeCache by lazy { FiltersBadgeCache() }
+
+    // Profile
+    private val profileDataStore by lazy { ProfileDataStore(appContext) }
+    val profileRepository: ProfileRepository by lazy { ProfileRepositoryImpl(profileDataStore) }
 }

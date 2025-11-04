@@ -27,6 +27,7 @@ import com.example.wubbalistdubapp.ui.CharacterDetailsRoute
 import com.example.wubbalistdubapp.ui.CharactersRoute
 import com.example.wubbalistdubapp.ui.favorites.FavoritesRoute
 import com.example.wubbalistdubapp.ui.filters.FiltersRoute
+import androidx.compose.material.icons.filled.Person
 
 
 class MainActivity : ComponentActivity() {
@@ -71,6 +72,12 @@ class MainActivity : ComponentActivity() {
                                 icon = { Icon(Icons.Filled.Favorite, null) },
                                 label = { Text("Избранное") }
                             )
+                            NavigationBarItem(
+                                selected = route == Routes.PROFILE || route == Routes.PROFILE_EDIT,
+                                onClick = { go(Routes.PROFILE) },
+                                icon = { Icon(Icons.Default.Person, null) },
+                                label = { Text("Профиль") }
+                            )
                         }
                     }
                 ) { inner ->
@@ -98,6 +105,16 @@ class MainActivity : ComponentActivity() {
                         composable(Routes.FAVORITES) {
                             FavoritesRoute(
                                 onItemClick = { ch -> navController.navigate(Routes.characterDetails(ch)) }
+                            )
+                        }
+                        composable(Routes.PROFILE) {
+                            com.example.wubbalistdubapp.ui.profile.ProfileRoute(
+                                onEdit = { navController.navigate(Routes.PROFILE_EDIT) }
+                            )
+                        }
+                        composable(Routes.PROFILE_EDIT) {
+                            com.example.wubbalistdubapp.ui.profile.EditProfileRoute(
+                                onBack = { navController.popBackStack() }
                             )
                         }
                     }

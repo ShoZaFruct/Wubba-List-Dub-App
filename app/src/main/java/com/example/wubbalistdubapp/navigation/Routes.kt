@@ -13,4 +13,7 @@ object Routes {
     const val FAVORITES = "favorites"
 
     const val FILTERS = "filters"
+
+    const val PROFILE = "profile"
+    const val PROFILE_EDIT = "profile_edit"
 }
