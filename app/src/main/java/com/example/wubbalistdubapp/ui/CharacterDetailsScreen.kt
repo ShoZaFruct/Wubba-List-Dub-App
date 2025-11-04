@@ -1,32 +1,10 @@
 package com.example.wubbalistdubapp.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,28 +14,30 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.wubbalistdubapp.domain.model.Character
+import com.example.wubbalistdubapp.ui.components.ErrorState
 
 @Composable
 fun CharacterDetailsRoute(
-    id: Int,
     onBack: () -> Unit,
     vm: CharacterDetailsViewModel = viewModel()
 ) {
     val state by vm.state.collectAsState()
-    LaunchedEffect(id) { vm.load(id) }
+    val isFav by vm.isFavorite.collectAsState()
 
     CharacterDetailsScreen(
         state = state,
-        onBack = onBack,
-        onRetry = { vm.load(id) }
+        isFavorite = isFav,
+        onToggleFavorite = vm::toggleFavorite,
+        onBack = onBack
     )
 }
 
 @Composable
 fun CharacterDetailsScreen(
     state: UiState<Character>,
-    onBack: () -> Unit,
-    onRetry: () -> Unit
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onBack: () -> Unit
 ) {
     Column {
         Surface(tonalElevation = 2.dp, shadowElevation = 4.dp) {
@@ -69,64 +49,27 @@ fun CharacterDetailsScreen(
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад"
-                    )
-                }
-                Text(
-                    text = "Детали",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") }
+                Text("Детали", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 4.dp))
             }
         }
 
         when (state) {
-            UiState.Idle, UiState.Loading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            is UiState.Error -> {
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("Ошибка: ${state.message}")
-                    Spacer(Modifier.height(12.dp))
-                    Button(onClick = onRetry) { Text("Повторить") }
-                }
-            }
-            is UiState.Success -> {
-                DetailsContent(character = state.data)
-            }
+            UiState.Idle, UiState.Loading ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            is UiState.Error -> ErrorState(message = state.message, onRetry = onBack)
+            is UiState.Success -> DetailsContent(state.data, isFavorite, onToggleFavorite)
         }
     }
 }
 
 @Composable
-private fun DetailsContent(character: Character) {
-    Column(
-        modifier = Modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+private fun DetailsContent(character: Character, isFavorite: Boolean, onToggleFavorite: () -> Unit) {
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            AsyncImage(
-                model = character.image,
-                contentDescription = character.name,
-                modifier = Modifier.size(120.dp)
-            )
+            AsyncImage(model = character.image, contentDescription = character.name, modifier = Modifier.size(120.dp))
             Column(Modifier.weight(1f)) {
-                Text(
-                    character.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(character.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AssistChip(onClick = {}, label = { Text(character.status) })
@@ -137,6 +80,10 @@ private fun DetailsContent(character: Character) {
                 Text("Origin: ${character.origin}", style = MaterialTheme.typography.bodyMedium)
                 Text("Location: ${character.location}", style = MaterialTheme.typography.bodyMedium)
             }
+        }
+
+        Button(onClick = onToggleFavorite) {
+            Text(if (isFavorite) "Удалить из избранного" else "В избранное")
         }
 
         Card {
@@ -153,10 +100,6 @@ private fun DetailsContent(character: Character) {
     }
 }
 
-@Composable
-private fun InfoRow(title: String, value: String) {
-    Row {
-        Text(title, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-        Text(value, Modifier.weight(1f))
-    }
+@Composable private fun InfoRow(title: String, value: String) {
+    Row { Text(title, Modifier.weight(1f), fontWeight = FontWeight.SemiBold); Text(value, Modifier.weight(1f)) }
 }
